@@ -1,0 +1,480 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Edit Post</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="style.css" />
+  </head>
+  <body>
+    <header class="navbar">
+      <div class="navbar-content">
+        <a href="dashboard.html" class="navbar-logo">
+          <img src="../Images/Group 1.png" alt="Smart Crop Advisor" />
+        </a>
+        <button id="hamburger-btn">
+          <i data-lucide="menu"></i>
+        </button>
+        <nav class="navbar-nav" id="navbar-nav">
+          <a href="dashboard.html" class="nav-link">Dashboard</a>
+          <a href="createpost.html" class="nav-link">Create Post</a>
+          <a href="comments.html" class="nav-link" id="comments-nav"
+            >Comments</a
+          >
+          <a href="users.html" class="nav-link">Users</a>
+          <a href="profile.html" class="nav-link">Profile</a>
+        </nav>
+      </div>
+    </header>
+
+    <main class="main-content">
+      <section class="page">
+        <div class="page-header">
+          <h1 class="page-title">Edit Post</h1>
+          <p class="page-subtitle">Update crop information</p>
+        </div>
+
+        <div class="create-form-container">
+          <form id="edit-post-form" class="create-post-form">
+            <!-- Image Upload -->
+            <div class="form-group">
+              <label class="form-label">Crop Image</label>
+              <div class="image-upload-container">
+                <div class="image-preview" id="image-preview">
+                  <span class="preview-placeholder">Loading image...</span>
+                </div>
+                <input
+                  type="file"
+                  id="crop-image"
+                  class="file-input"
+                  accept="image/*"
+                />
+              </div>
+              <span id="image-error" class="form-error hidden"></span>
+            </div>
+
+            <div class="form-row">
+              <div class="form-group">
+                <label for="crop-name" class="form-label">Crop Name</label>
+                <input
+                  type="text"
+                  id="crop-name"
+                  class="form-input"
+                  placeholder="e.g., Maize"
+                />
+                <span id="name-error" class="form-error hidden"></span>
+              </div>
+              <div class="form-group">
+                <label for="crop-category" class="form-label">Category</label>
+                <input
+                  type="text"
+                  id="crop-category"
+                  class="form-input"
+                  placeholder="e.g., Cereal"
+                />
+                <span id="category-error" class="form-error hidden"></span>
+              </div>
+            </div>
+
+            <div class="form-group">
+              <label for="crop-duration" class="form-label"
+                >Growing Duration</label
+              >
+              <input
+                type="text"
+                id="crop-duration"
+                class="form-input"
+                placeholder="e.g., 90-120 days"
+              />
+              <span id="duration-error" class="form-error hidden"></span>
+            </div>
+
+            <div class="form-group">
+              <label for="crop-description" class="form-label"
+                >Description</label
+              >
+              <textarea
+                id="crop-description"
+                class="form-textarea"
+                placeholder="Brief overview..."
+                rows="3"
+              ></textarea>
+              <span id="description-error" class="form-error hidden"></span>
+            </div>
+
+            <div class="form-group">
+              <label for="crop-climate" class="form-label"
+                >Climate Requirements</label
+              >
+              <textarea
+                id="crop-climate"
+                class="form-textarea"
+                placeholder="Temperature, rainfall..."
+                rows="2"
+              ></textarea>
+              <span id="climate-error" class="form-error hidden"></span>
+            </div>
+
+            <div class="form-group">
+              <label for="crop-soil" class="form-label"
+                >Soil Requirements</label
+              >
+              <textarea
+                id="crop-soil"
+                class="form-textarea"
+                placeholder="Soil type, pH..."
+                rows="2"
+              ></textarea>
+              <span id="soil-error" class="form-error hidden"></span>
+            </div>
+
+            <div class="form-group">
+              <label for="crop-planting" class="form-label"
+                >Planting Instructions</label
+              >
+              <textarea
+                id="crop-planting"
+                class="form-textarea"
+                placeholder="How to plant..."
+                rows="2"
+              ></textarea>
+              <span id="planting-error" class="form-error hidden"></span>
+            </div>
+
+            <div class="form-group">
+              <label for="crop-watering" class="form-label"
+                >Watering Guidelines</label
+              >
+              <textarea
+                id="crop-watering"
+                class="form-textarea"
+                placeholder="Watering frequency..."
+                rows="2"
+              ></textarea>
+              <span id="watering-error" class="form-error hidden"></span>
+            </div>
+
+            <div class="form-group">
+              <label for="crop-harvesting" class="form-label"
+                >Harvesting Instructions</label
+              >
+              <textarea
+                id="crop-harvesting"
+                class="form-textarea"
+                placeholder="When and how to harvest..."
+                rows="2"
+              ></textarea>
+              <span id="harvesting-error" class="form-error hidden"></span>
+            </div>
+
+            <div class="form-actions">
+              <button type="submit" id="submit-btn" class="btn btn-primary">
+                Update Post
+              </button>
+              <a href="dashboard.html" class="btn btn-secondary">Cancel</a>
+            </div>
+          </form>
+        </div>
+      </section>
+    </main>
+
+    <!-- Supabase SDK -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
+    <script src="../supabase-api.js"></script>
+    <script src="../supabase-config.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/lucide@0.321.0/dist/umd/lucide.min.js"></script>
+
+    <script>
+      // Global variables to store crop data and new image file
+      let currentCropId = null;
+      let currentCrop = null;
+      let selectedFile = null;
+
+      // Function to show error messages
+      function showError(inputId, errorId, message) {
+        document.getElementById(inputId).classList.add("error");
+        document.getElementById(errorId).textContent = message;
+        document.getElementById(errorId).classList.remove("hidden");
+      }
+
+      // Function to handle image selection for update
+      function handleImageSelect(event) {
+        let file = event.target.files[0];
+
+        // If no file selected, stop
+        if (!file) return;
+
+        // Check if file is image
+        if (!file.type.startsWith("image/")) {
+          alert("Please select an image file");
+          return;
+        }
+
+        // Check file size (max 5MB)
+        if (file.size > 5 * 1024 * 1024) {
+          alert("Image must be less than 5MB");
+          return;
+        }
+
+        // Save file to global variable
+        selectedFile = file;
+        let reader = new FileReader();
+        reader.onload = function (e) {
+          document.getElementById("image-preview").innerHTML =
+            '<img src="' + e.target.result + '" alt="Preview">';
+        };
+        reader.readAsDataURL(file);
+      }
+
+      // Function to fetch and display existing crop data
+      function loadCropData() {
+        // Get ID from URL
+        let urlParams = new URLSearchParams(window.location.search);
+        currentCropId = urlParams.get("id");
+
+        // If no ID, go back to dashboard
+        if (!currentCropId) {
+          window.location.href = "dashboard.html";
+          return;
+        }
+
+        // Fetch crop details from database
+        getCropById(currentCropId)
+          .then(function (crop) {
+            // If crop not found
+            if (!crop) {
+              window.location.href = "dashboard.html";
+              return;
+            }
+
+            // Save crop data globally
+            currentCrop = crop;
+
+            // Fill the form fields with crop data
+            document.getElementById("crop-name").value = crop.name;
+            document.getElementById("crop-category").value = crop.category;
+            document.getElementById("crop-duration").value = crop.duration;
+            document.getElementById("crop-description").value =
+              crop.description;
+            document.getElementById("crop-climate").value = crop.climate;
+            document.getElementById("crop-soil").value = crop.soil;
+            document.getElementById("crop-planting").value = crop.planting;
+            document.getElementById("crop-watering").value = crop.watering;
+            document.getElementById("crop-harvesting").value = crop.harvesting;
+
+            // Show current image
+            if (crop.image_url) {
+              document.getElementById("image-preview").innerHTML =
+                '<img src="' + crop.image_url + '" alt="Current Image">';
+            } else {
+              document.getElementById("image-preview").innerHTML =
+                '<span class="preview-placeholder">No image uploaded</span>';
+            }
+          })
+          .catch(function (error) {
+            // Error alert
+            alert("Error loading crop data: " + error.message);
+          });
+      }
+
+      // Function to handle updating the post
+      function handleUpdatePost(event) {
+        event.preventDefault();
+
+        // Retrieve values from form
+        let name = document.getElementById("crop-name").value.trim();
+        let category = document.getElementById("crop-category").value.trim();
+        let duration = document.getElementById("crop-duration").value.trim();
+        let description = document
+          .getElementById("crop-description")
+          .value.trim();
+        let climate = document.getElementById("crop-climate").value.trim();
+        let soil = document.getElementById("crop-soil").value.trim();
+        let planting = document.getElementById("crop-planting").value.trim();
+        let watering = document.getElementById("crop-watering").value.trim();
+        let harvesting = document
+          .getElementById("crop-harvesting")
+          .value.trim();
+        let submitBtn = document.getElementById("submit-btn");
+
+        // Reset all error messages first
+        let errorElements = document.querySelectorAll(".form-error");
+        errorElements.forEach(function (el) {
+          el.classList.add("hidden");
+        });
+        let inputElements = document.querySelectorAll(
+          ".form-input, .form-textarea"
+        );
+        inputElements.forEach(function (el) {
+          el.classList.remove("error");
+        });
+
+        // Validation check
+        let isValid = true;
+
+        if (name === "") {
+          showError("crop-name", "name-error", "Crop name is required");
+          isValid = false;
+        }
+        if (category === "") {
+          showError("crop-category", "category-error", "Category is required");
+          isValid = false;
+        }
+        if (duration === "") {
+          showError("crop-duration", "duration-error", "Duration is required");
+          isValid = false;
+        }
+        if (description === "") {
+          showError(
+            "crop-description",
+            "description-error",
+            "Description is required"
+          );
+          isValid = false;
+        }
+        if (climate === "") {
+          showError(
+            "crop-climate",
+            "climate-error",
+            "Climate requirements are required"
+          );
+          isValid = false;
+        }
+        if (soil === "") {
+          showError(
+            "crop-soil",
+            "soil-error",
+            "Soil requirements are required"
+          );
+          isValid = false;
+        }
+        if (planting === "") {
+          showError(
+            "crop-planting",
+            "planting-error",
+            "Planting instructions are required"
+          );
+          isValid = false;
+        }
+        if (watering === "") {
+          showError(
+            "crop-watering",
+            "watering-error",
+            "Watering guidelines are required"
+          );
+          isValid = false;
+        }
+        if (harvesting === "") {
+          showError(
+            "crop-harvesting",
+            "harvesting-error",
+            "Harvesting instructions are required"
+          );
+          isValid = false;
+        }
+        if (!isValid) return;
+
+        // Update the  process
+        submitBtn.textContent = "Updating post...";
+        submitBtn.disabled = true;
+
+        let updatePromise;
+
+        // Check upload image
+        if (selectedFile) {
+          // Delete old image
+          updatePromise = deleteImage(currentCrop.image_url).then(function () {
+            // Then upload the new one
+            return uploadCropImage(selectedFile, name);
+          });
+        } else {
+          // No new image, preserve the old URL
+          updatePromise = Promise.resolve(currentCrop.image_url);
+        }
+
+        updatePromise
+          .then(function (imageUrl) {
+            let cropData = {
+              name: name,
+              category: category,
+              duration: duration,
+              image_url: imageUrl,
+              description: description,
+              climate: climate,
+              soil: soil,
+              planting: planting,
+              watering: watering,
+              harvesting: harvesting,
+            };
+
+            // Update the database
+            return updateCrop(currentCropId, cropData);
+          })
+          .then(function (updateResult) {
+            // Success alert
+            alert("Crop updated successfully!");
+            window.location.href = "cropdetails.html?id=" + currentCropId;
+          })
+          .catch(function (error) {
+            // Errors alert
+            submitBtn.textContent = "Update Post";
+            submitBtn.disabled = false;
+            alert(getFriendlyErrorMessage(error));
+          });
+      }
+
+      // Check admin status
+      function checkAdminAuth(user) {
+        if (!user) {
+          window.location.href = "login.html";
+          return;
+        }
+
+        getUserRole(user.id).then(function (role) {
+          if (role !== "admin") {
+            window.location.href = "login.html";
+          } else {
+            loadCropData();
+          }
+        });
+      }
+
+      // Function to initialize the page
+      function initEditPostPage() {
+        onAuthChange(checkAdminAuth);
+
+        // Sidebar toggle
+        document
+          .getElementById("hamburger-btn")
+          .addEventListener("click", function () {
+            document.getElementById("navbar-nav").classList.toggle("active");
+          });
+
+        // Form submission
+        document
+          .getElementById("edit-post-form")
+          .addEventListener("submit", handleUpdatePost);
+
+        // Image upload handling
+        let imageInput = document.getElementById("crop-image");
+        let imagePreview = document.getElementById("image-preview");
+
+        imagePreview.addEventListener("click", function () {
+          imageInput.click();
+        });
+
+        imageInput.addEventListener("change", handleImageSelect);
+
+        // For the icons use
+        lucide.createIcons();
+      }
+      document.addEventListener("DOMContentLoaded", initEditPostPage);
+    </script>
+  </body>
+</html>

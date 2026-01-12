@@ -1,0 +1,138 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Profile</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="style.css" />
+  </head>
+  <body>
+    <header class="navbar">
+      <div class="navbar-content">
+        <a href="index.html" class="navbar-logo">
+          <img src="../Images/Group 1.png" alt="Smart Crop Advisor" />
+        </a>
+        <button id="hamburger-btn">
+          <i data-lucide="menu"></i>
+        </button>
+        <nav class="navbar-nav" id="navbar-nav">
+          <a href="index.html" class="nav-link">Home</a>
+          <a href="comments.html" class="nav-link" id="comments-nav"
+            >Comments</a
+          >
+          <a href="profile.html" class="nav-link active">Profile</a>
+        </nav>
+      </div>
+    </header>
+
+    <main class="main-content">
+      <section class="page">
+        <div class="page-header">
+          <h1 class="page-title">Profile</h1>
+          <p class="page-subtitle">Account information</p>
+        </div>
+
+        <div class="profile-container">
+          <div class="profile-card">
+            <div class="profile-avatar">
+              <i data-lucide="user"></i>
+            </div>
+            <div class="profile-details">
+              <div class="profile-info">
+                <div class="profile-field">
+                  <span class="field-label">Full Name</span>
+                  <span id="profile-name" class="field-value">Loading...</span>
+                </div>
+                <div class="profile-field">
+                  <span class="field-label">Email Address</span>
+                  <span id="profile-email" class="field-value">Loading...</span>
+                </div>
+              </div>
+              <button id="logout-btn" class="btn btn-secondary btn-full">
+                Logout
+              </button>
+            </div>
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <script src="https://cdn.jsdelivr.net/npm/lucide@0.321.0/dist/umd/lucide.min.js"></script>
+    <!-- Supabase SDK -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="../supabase-api.js"></script>
+    <script src="../supabase-config.js"></script>
+
+    <script>
+      // Function to load user imformation
+      function loadProfile(user) {
+        document.getElementById("profile-email").textContent =
+          user.email || "No email";
+
+        let profileName = document.getElementById("profile-name");
+        profileName.textContent = "Loading...";
+
+        // Get data from database
+        getUserProfile(user.id)
+          .then(function (profile) {
+            if (profile && profile.name) {
+              profileName.textContent = profile.name;
+            } else if (user.user_metadata && user.user_metadata.name) {
+              profileName.textContent = user.user_metadata.name;
+            } else {
+              profileName.textContent = "User";
+            }
+          })
+          .catch(function (error) {
+            // Handle errors
+            profileName.textContent =
+              "Error: " + getFriendlyErrorMessage(error);
+          });
+      }
+
+      // Function to handle logging out
+      function handleLogout() {
+        signOut()
+          .then(function () {
+            window.location.href = "login.html";
+          })
+          .catch(function (error) {
+            alert("Error logging out: " + error.message);
+          });
+      }
+
+      // Function to initialize the page
+      function initProfilePage() {
+        onAuthChange(function (user) {
+          if (!user) {
+            window.location.href = "login.html";
+          } else {
+            loadProfile(user);
+          }
+        });
+
+        // Logout button
+        document
+          .getElementById("logout-btn")
+          .addEventListener("click", handleLogout);
+
+        // Sidebar toggle
+        document
+          .getElementById("hamburger-btn")
+          .addEventListener("click", function () {
+            document.getElementById("navbar-nav").classList.toggle("active");
+          });
+
+        // For the icons used
+        lucide.createIcons();
+      }
+      document.addEventListener("DOMContentLoaded", initProfilePage);
+    </script>
+  </body>
+</html>

@@ -1,0 +1,230 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Dashboard</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="style.css" />
+  </head>
+  <body>
+    <header class="navbar">
+      <div class="navbar-content">
+        <a href="dashboard.html" class="navbar-logo">
+          <img src="../Images/Group 1.png" alt="Smart Crop Advisor" />
+        </a>
+        <button id="hamburger-btn">
+          <i data-lucide="menu"></i>
+        </button>
+        <nav class="navbar-nav" id="navbar-nav">
+          <a href="dashboard.html" class="nav-link active">Dashboard</a>
+          <a href="createpost.html" class="nav-link">Create Post</a>
+          <a href="comments.html" class="nav-link" id="comments-nav"
+            >Comments</a
+          >
+          <a href="users.html" class="nav-link">Users</a>
+          <a href="profile.html" class="nav-link">Profile</a>
+        </nav>
+      </div>
+    </header>
+
+    <main class="main-content">
+      <section class="page">
+        <div class="page-header">
+          <h1 class="page-title">Admin Dashboard</h1>
+          <p class="page-subtitle">All posted crops</p>
+        </div>
+
+        <div class="search-container">
+          <input
+            type="text"
+            id="search-input"
+            class="search-input"
+            placeholder="Search for crops..."
+          />
+          <i data-lucide="search" class="search-icon"></i>
+        </div>
+
+        <div id="crops-grid" class="crops-grid">
+          <div class="loading-state">Loading crops...</div>
+        </div>
+
+        <div class="not-found-message hidden" id="not-found-message">
+          No crops found
+        </div>
+
+        <div class="empty-state hidden" id="empty-state">
+          <p class="empty-text">No crops posted yet</p>
+          <a href="createpost.html" class="btn btn-primary"
+            >Create First Post</a
+          >
+        </div>
+      </section>
+    </main>
+
+    <!-- Supabase SDK -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="../supabase-api.js"></script>
+    <script src="../supabase-config.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/lucide@0.321.0/dist/umd/lucide.min.js"></script>
+
+    <script>
+      // Global variable to store crops
+      let allCrops = [];
+
+      // Function to create HTML for a crop card
+      function createCropCard(crop) {
+        // Shorten the description content
+        let desc = crop.description;
+        if (crop.description.length > 80) {
+          desc = crop.description.substring(0, 80) + "...";
+        }
+
+        // Use the crop image or a placeholder if no image exists
+        let imageSrc = crop.image_url;
+        if (!imageSrc) {
+          imageSrc =
+            "https://via.placeholder.com/320x180/4CAF50/white?text=" +
+            encodeURIComponent(crop.name);
+        }
+
+        // Return HTML using template
+        return `
+          <article class="crop-card">
+            <a href="cropdetails.html?id=${crop.id}" class="crop-card-link">
+              <div class="crop-image">
+                <img src="${imageSrc}" alt="${crop.name}">
+              </div>
+              <div class="crop-info">
+                <h3 class="crop-name">${crop.name}</h3>
+                <p class="crop-description">${desc}</p>
+                <div class="crop-meta">
+                  <span class="crop-tag">${crop.category}</span>
+                  <span class="crop-duration">${crop.duration}</span>
+                </div>
+              </div>
+            </a>
+          </article>
+        `;
+      }
+
+      // Function to display crops on the dashboard
+      function renderCrops(crops) {
+        let grid = document.getElementById("crops-grid");
+        let emptyState = document.getElementById("empty-state");
+        let notFound = document.getElementById("not-found-message");
+
+        // If there is no crops
+        if (crops.length === 0) {
+          grid.innerHTML = "";
+          emptyState.classList.remove("hidden");
+          notFound.classList.add("hidden");
+          return;
+        }
+
+        // Hide empty states
+        emptyState.classList.add("hidden");
+        notFound.classList.add("hidden");
+
+        // Create HTML
+        let html = "";
+        crops.forEach(function (crop) {
+          html = html + createCropCard(crop);
+        });
+
+        // Put the HTML into the grid container
+        grid.innerHTML = html;
+      }
+
+      // Function to filter crops by search term
+      function filterCrops(searchTerm) {
+        let notFound = document.getElementById("not-found-message");
+        let search = searchTerm.toLowerCase();
+
+        // Show all cards if search is empty
+        if (search === "") {
+          renderCrops(allCrops);
+          return;
+        }
+
+        // Filter the list
+        let filtered = allCrops.filter(function (crop) {
+          return (
+            crop.name.toLowerCase().includes(search) ||
+            crop.category.toLowerCase().includes(search)
+          );
+        });
+
+        // Show results or (not found) message
+        if (filtered.length === 0) {
+          document.getElementById("crops-grid").innerHTML = "";
+          notFound.classList.remove("hidden");
+        } else {
+          renderCrops(filtered);
+        }
+      }
+
+      // Function to fetch crops from database
+      function loadCrops() {
+        getAllCrops()
+          .then(function (crops) {
+            allCrops = crops;
+            renderCrops(allCrops);
+          })
+          // Show error if loading fails
+          .catch(function (error) {
+            document.getElementById("crops-grid").innerHTML = `
+                <p class="error-message">Error loading crops: ${getFriendlyErrorMessage(
+                  error
+                )}</p>
+            `;
+          });
+      }
+
+      // Function to ensure user is an admin
+      function checkAdminAuth(user) {
+        if (!user) {
+          window.location.href = "login.html";
+          return;
+        }
+
+        // Check the role
+        getUserRole(user.id).then(function (role) {
+          if (role !== "admin") {
+            window.location.href = "login.html";
+          } else {
+            loadCrops();
+          }
+        });
+      }
+
+      // Function to initialize the dashboard page
+      function initDashboard() {
+        onAuthChange(checkAdminAuth);
+
+        // Sidebar toggle
+        document
+          .getElementById("hamburger-btn")
+          .addEventListener("click", function () {
+            document.getElementById("navbar-nav").classList.toggle("active");
+          });
+
+        // Searchbar input
+        document
+          .getElementById("search-input")
+          .addEventListener("input", function (e) {
+            filterCrops(e.target.value);
+          });
+
+        // For the icons used
+        lucide.createIcons();
+      }
+      document.addEventListener("DOMContentLoaded", initDashboard);
+    </script>
+  </body>
+</html>

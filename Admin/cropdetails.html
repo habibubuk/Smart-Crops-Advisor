@@ -1,0 +1,414 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+
+    <title>Crop Details</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="style.css" />
+  </head>
+  <body>
+    <header class="navbar">
+      <div class="navbar-content">
+        <a href="dashboard.html" class="navbar-logo">
+          <img src="../Images/Group 1.png" alt="Smart Crop Advisor" />
+        </a>
+        <button class="hamburger-btn" id="hamburger-btn">
+          <i data-lucide="menu"></i>
+        </button>
+
+        <nav class="navbar-nav" id="navbar-nav">
+          <a href="dashboard.html" class="nav-link active">Dashboard</a>
+          <a href="createpost.html" class="nav-link">Create Post</a>
+          <a href="comments.html" class="nav-link" id="comments-nav"
+            >Comments</a
+          >
+          <a href="users.html" class="nav-link">Users</a>
+          <a href="profile.html" class="nav-link">Profile</a>
+        </nav>
+      </div>
+    </header>
+
+    <main class="main-content">
+      <section class="page">
+        <a href="dashboard.html" class="back-button">
+          <i data-lucide="chevron-left" class="back-icon"></i>
+          <span>Back</span>
+        </a>
+
+        <article id="crop-detail-content" class="crop-detail">
+          <div class="loading-state">Loading crop details...</div>
+        </article>
+
+        <div class="admin-actions" id="admin-actions">
+          <a href="#" class="btn btn-primary" id="edit-btn">Edit Post</a>
+          <button class="btn btn-danger" id="delete-btn">Delete Post</button>
+        </div>
+
+        <section class="crop-comment-section">
+          <h3 class="section-title">Public Comments</h3>
+          <div id="comments-list" class="comments-list">
+            <div class="loading-state">Loading comments...</div>
+          </div>
+        </section>
+      </section>
+    </main>
+
+    <!-- Supabase SDK -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="../supabase-api.js"></script>
+    <script src="../supabase-config.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/lucide@0.321.0/dist/umd/lucide.min.js"></script>
+
+    <script>
+      // Global variables to store current page data
+      let currentCropId = null;
+      let currentCrop = null;
+      let commentsData = [];
+
+      // Function to show or hide comments
+      function toggleContent(link) {
+        let card = link.parentElement;
+        let short = card.querySelector(".comment-text");
+        let full = card.querySelector(".comment-full-text");
+
+        if (full.classList.contains("hidden")) {
+          full.classList.remove("hidden");
+          short.classList.add("hidden");
+          link.textContent = "Display less";
+        } else {
+          full.classList.add("hidden");
+          short.classList.remove("hidden");
+          link.textContent = "Display more";
+        }
+      }
+
+      // Function to handle sending a reply
+      function handleReply(index) {
+        let input = document.getElementById("reply-input-" + index);
+        let text = input.value.trim();
+
+        if (text === "") {
+          alert("Please enter a reply");
+          return;
+        }
+
+        // Get the current comment replying to
+        let comment = commentsData[index];
+
+        // Create current date string
+        let today = new Date();
+        let dateString = today.toLocaleString("en-US", {
+          month: "short",
+          day: "numeric",
+          year: "numeric",
+          hour: "2-digit",
+          minute: "2-digit",
+        });
+
+        // Each reply data
+        let replyData = {
+          text: text,
+          from: "Admin",
+          date: dateString,
+          is_admin: true,
+        };
+
+        // Send reply to database
+        addReply(comment.id, replyData)
+          .then(function () {
+            input.value = "";
+            loadComments();
+            alert("Reply sent!");
+          })
+          .catch(function (error) {
+            alert(getFriendlyErrorMessage(error));
+          });
+      }
+
+      // Function to format date
+      function formatDate(dateString) {
+        if (!dateString) return "Just now";
+        let date = new Date(dateString);
+        return date.toLocaleString("en-US", {
+          month: "short",
+          day: "numeric",
+          year: "numeric",
+          hour: "2-digit",
+          minute: "2-digit",
+        });
+      }
+
+      // Function to create HTML for a single comment
+      function createCommentCard(item, index) {
+        let content = item.comment.content;
+        let shortContent = content;
+        let showMoreHtml = "";
+
+        // If comment is long, shotten it
+        if (content.length > 100) {
+          shortContent = content.substring(0, 100) + "...";
+          showMoreHtml =
+            '<span class="display-more" onclick="toggleContent(this)">Display more</span>';
+        }
+
+        let userName = item.comment.users?.name || "User";
+        let dateStr = formatDate(item.comment.created_at);
+
+        return `
+          <div class="comment-card">
+            <div class="comment-card-info">
+              <span class="comment-crop-name">
+                ${userName} commented on ${currentCrop.name}
+              </span>
+              <span class="comment-date">
+                ${dateStr}
+              </span>
+            </div>
+            <p class="comment-text">${shortContent}</p>
+            ${showMoreHtml}
+            <div class="comment-full-text hidden">
+              <p>${content}</p>
+              <div class="reply-form">
+                <input type="text" id="reply-input-${item.commentIndex}" class="form-input reply-input" placeholder="Write a reply...">
+                <button class="btn btn-primary btn-sm" onclick="handleReply(${item.commentIndex})">Reply</button>
+              </div>
+            </div>
+          </div>
+        `;
+      }
+
+      // Function to fetch comments
+      function loadComments() {
+        if (!currentCropId) return;
+        getCommentsByCrop(currentCropId).then(function (comments) {
+          let list = document.getElementById("comments-list");
+          commentsData = comments;
+
+          // If no comments
+          if (!comments || comments.length === 0) {
+            list.innerHTML =
+              '<p class="empty-text">No comments yet for this crop.</p>';
+            return;
+          }
+
+          // Build list of items
+          let items = [];
+          comments.forEach(function (comment, i) {
+            // Add main comment
+            items.push({
+              type: "comment",
+              comment: comment,
+              commentIndex: i,
+            });
+
+            // Add any replies
+            if (comment.replies && Array.isArray(comment.replies)) {
+              comment.replies.forEach(function (reply) {
+                items.push({
+                  type: "reply",
+                  reply: reply,
+                  comment: comment,
+                });
+              });
+            }
+          });
+
+          // Build HTML
+          let html = "";
+          items.forEach(function (item, index) {
+            html = html + createCommentCard(item, index);
+          });
+
+          list.innerHTML = html;
+        });
+      }
+
+      // Function to render crop details
+      function renderCropDetail(crop) {
+        document.title = crop.name + " Smart Crop Advisor";
+
+        // Use the crop image or a placeholder if no image exists
+        let imageSrc = crop.image_url;
+        if (!imageSrc) {
+          imageSrc =
+            "https://via.placeholder.com/640x360/4CAF50/white?text=" +
+            encodeURIComponent(crop.name);
+        }
+
+        // HTML Template for crop details
+        let html = `
+          <div class="crop-detail-header">
+            <img src="${imageSrc}" alt="${crop.name}" class="crop-detail-image">
+          </div>
+          
+          <div class="crop-detail-content">
+            <h1 class="crop-detail-title">${crop.name}</h1>
+            
+            <span class="crop-detail-category">
+              ${crop.category} • ${crop.duration}
+            </span>
+
+            <div class="detail-section">
+              <h2 class="detail-section-title">Overview</h2>
+              <p class="detail-section-text">${crop.description}</p>
+            </div>
+
+            <div class="detail-section">
+              <h2 class="detail-section-title">Growing Requirements</h2>
+              <ul class="detail-list">
+                <li class="detail-list-item">
+                  <div class="detail-list-content">
+                    <span class="detail-list-label">Climate</span>
+                    <span class="detail-list-value">${crop.climate}</span>
+                  </div>
+                </li>
+                <li class="detail-list-item">
+                  <div class="detail-list-content">
+                    <span class="detail-list-label">Soil</span>
+                    <span class="detail-list-value">${crop.soil}</span>
+                  </div>
+                </li>
+              </ul>
+            </div>
+
+            <div class="detail-section">
+              <h2 class="detail-section-title">Farming Guide</h2>
+              <ul class="detail-list">
+                <li class="detail-list-item">
+                  <div class="detail-list-content">
+                    <span class="detail-list-label">Planting</span>
+                    <span class="detail-list-value">${crop.planting}</span>
+                  </div>
+                </li>
+                <li class="detail-list-item">
+                  <div class="detail-list-content">
+                    <span class="detail-list-label">Watering</span>
+                    <span class="detail-list-value">${crop.watering}</span>
+                  </div>
+                </li>
+                <li class="detail-list-item">
+                  <div class="detail-list-content">
+                    <span class="detail-list-label">Harvesting</span>
+                    <span class="detail-list-value">${crop.harvesting}</span>
+                  </div>
+                </li>
+              </ul>
+            </div>
+          </div>
+        `;
+
+        // Put the HTML into the page
+        document.getElementById("crop-detail-content").innerHTML = html;
+
+        // Edit Button
+        let editBtn = document.getElementById("edit-btn");
+        editBtn.href = "editpost.html?id=" + crop.id;
+
+        // Show Admin Actions
+        document.getElementById("admin-actions").style.display = "flex";
+      }
+
+      // Function to handle delete post
+      function handleDelete() {
+        if (!confirm("Are you sure you want to delete this post?")) {
+          return;
+        }
+
+        let deleteBtn = document.getElementById("delete-btn");
+        deleteBtn.textContent = "Deleting...";
+        deleteBtn.disabled = true;
+
+        // Delete image
+        deleteImage(currentCrop.image_url)
+          .then(function () {
+            return deleteCommentsByCrop(currentCropId);
+          })
+          .then(function () {
+            // Delete database record
+            return deleteCrop(currentCropId);
+          })
+          .then(function () {
+            // Success alert
+            alert("Post deleted successfully!");
+            window.location.href = "dashboard.html";
+          })
+          .catch(function (error) {
+            // Error alert
+            deleteBtn.textContent = "Delete Post";
+            deleteBtn.disabled = false;
+            alert(getFriendlyErrorMessage(error));
+          });
+      }
+
+      // Function to load crop details
+      function loadCropDetail() {
+        let urlParams = new URLSearchParams(window.location.search);
+        currentCropId = urlParams.get("id");
+
+        if (!currentCropId) {
+          window.location.href = "dashboard.html";
+          return;
+        }
+
+        // Fetch the crop data
+        getCropById(currentCropId)
+          .then(function (crop) {
+            if (!crop) {
+              window.location.href = "dashboard.html";
+              return;
+            }
+            currentCrop = crop;
+            renderCropDetail(currentCrop);
+          })
+          .catch(function (error) {
+            document.getElementById("crop-detail-content").innerHTML =
+              '<p class="error-message">Error: ' + error.message + "</p>";
+          });
+      }
+
+      // Auth check
+      function checkAdminAuth(user) {
+        if (!user) {
+          window.location.href = "login.html";
+          return;
+        }
+
+        getUserRole(user.id).then(function (role) {
+          if (role !== "admin") {
+            window.location.href = "login.html";
+          } else {
+            loadCropDetail();
+            loadComments();
+          }
+        });
+      }
+
+      // Function to initialize the page
+      function initCropDetailPage() {
+        onAuthChange(checkAdminAuth);
+
+        // Sidebar toggle
+        document
+          .getElementById("hamburger-btn")
+          .addEventListener("click", function () {
+            document.getElementById("navbar-nav").classList.toggle("active");
+          });
+
+        document
+          .getElementById("delete-btn")
+          .addEventListener("click", handleDelete);
+
+        // For the icons use
+        lucide.createIcons();
+      }
+      document.addEventListener("DOMContentLoaded", initCropDetailPage);
+    </script>
+  </body>
+</html>

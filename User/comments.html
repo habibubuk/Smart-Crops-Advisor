@@ -1,0 +1,222 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="description" content="Your Comments - Smart Crop Advisor" />
+    <title>Comments</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="style.css" />
+  </head>
+  <body>
+    <header class="navbar">
+      <div class="navbar-content">
+        <a href="index.html" class="navbar-logo">
+          <img src="../Images/Group 1.png" alt="Smart Crop Advisor" />
+        </a>
+        <button id="hamburger-btn">
+          <i data-lucide="menu"></i>
+        </button>
+        <nav class="navbar-nav" id="navbar-nav">
+          <a href="index.html" class="nav-link">Home</a>
+          <a href="comments.html" class="nav-link active" id="comments-nav"
+            >Comments</a
+          >
+          <a href="profile.html" class="nav-link">Profile</a>
+        </nav>
+      </div>
+    </header>
+
+    <main class="main-content">
+      <section class="page">
+        <div class="page-header">
+          <h1 class="page-title">All Comments</h1>
+          <p class="page-subtitle">Comments of all crops</p>
+        </div>
+
+        <div id="comments-list" class="comments-list">
+          <div class="loading-state">Loading comments...</div>
+        </div>
+
+        <div class="empty-state hidden" id="empty-state">
+          <p class="empty-text">No comments yet</p>
+        </div>
+      </section>
+    </main>
+
+    <!-- Supabase SDK -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="../supabase-api.js"></script>
+    <script src="../supabase-config.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/lucide@0.321.0/dist/umd/lucide.min.js"></script>
+
+    <script>
+      // Global variable for the current user
+      let currentUser = null;
+
+      // Function to toggle between short and full comment text
+      function toggleContent(link) {
+        let card = link.parentElement;
+        let short = card.querySelector(".comment-text");
+        let full = card.querySelector(".comment-full-text");
+
+        if (full.classList.contains("hidden")) {
+          full.classList.remove("hidden");
+          short.classList.add("hidden");
+          link.textContent = "Display less";
+        } else {
+          full.classList.add("hidden");
+          short.classList.remove("hidden");
+          link.textContent = "Display more";
+        }
+      }
+
+      // Function to format date
+      function formatDate(dateString) {
+        if (!dateString) return "Just now";
+        let date = new Date(dateString);
+        return date.toLocaleString("en-US", {
+          month: "short",
+          day: "numeric",
+          year: "numeric",
+          hour: "2-digit",
+          minute: "2-digit",
+        });
+      }
+
+      // Function to create HTML for comment card
+      function createCommentCard(item, index) {
+        if (item.type === "reply") {
+          let cropName = item.cropName || "Crop";
+
+          return `
+                <div class="comment-card reply-card">
+                    <div class="comment-card-info">
+                        <div class="comment-preview">
+                            <span class="comment-crop-name admin-reply">
+                                Admin replied
+                            </span>
+                            <p class="comment-text-preview">${item.reply.text}</p>
+                        </div>
+                    </div>
+                    <span class="comment-date">${item.reply.date}</span>
+                </div>
+             `;
+        } else {
+          let cropName = item.comment.crops?.name || "Crop";
+          let content = item.comment.content;
+
+          let shortContent = content;
+          let showMoreHtml = "";
+
+          // If comment is long, shotten it
+          if (content.length > 100) {
+            shortContent = content.substring(0, 100) + "...";
+            showMoreHtml =
+              '<span class="display-more" onclick="toggleContent(this)">Display more</span>';
+          }
+
+          return `
+            <div class="comment-card">
+                <div class="comment-card-info">
+                    <span class="comment-crop-name">
+                        You commented on ${cropName}
+                    </span>
+                    <span class="comment-date">
+                        ${formatDate(item.comment.created_at)}
+                    </span>
+                </div>
+                <p class="comment-text">${shortContent}</p>
+                ${showMoreHtml}
+                <p class="comment-full-text hidden">${content}</p>
+            </div>
+          `;
+        }
+      }
+
+      // Function to fetch comments
+      function loadComments() {
+        getUserComments(currentUser.id)
+          .then(function (comments) {
+            let commentsList = document.getElementById("comments-list");
+            let emptyState = document.getElementById("empty-state");
+
+            // Show comments
+            emptyState.classList.add("hidden");
+
+            // Process and display comments
+            let items = [];
+            comments.forEach(function (comment) {
+              items.push({
+                type: "comment",
+                comment: comment,
+              });
+
+              // Add any replies
+              if (comment.replies && Array.isArray(comment.replies)) {
+                comment.replies.forEach(function (reply) {
+                  items.push({
+                    type: "reply",
+                    reply: reply,
+                    comment: comment,
+                  });
+                });
+              }
+            });
+
+            // Handle empty state
+            if (items.length === 0) {
+              commentsList.innerHTML = "";
+              emptyState.classList.remove("hidden");
+              return;
+            }
+
+            let html = "";
+            items.forEach(function (item, index) {
+              html = html + createCommentCard(item, index);
+            });
+
+            commentsList.innerHTML = html;
+          })
+          .catch(function (error) {
+            document.getElementById("comments-list").innerHTML = `
+                <p class="error-message">Error loading comments: ${getFriendlyErrorMessage(
+                  error
+                )}</p>
+            `;
+          });
+      }
+
+      // Auth check
+      function checkUserAuth(user) {
+        if (!user) {
+          window.location.href = "login.html";
+        } else {
+          currentUser = user;
+          loadComments();
+        }
+      }
+
+      // Function to initialize the page
+      function initCommentsPage() {
+        onAuthChange(checkUserAuth);
+
+        // Sidebar toggle
+        document
+          .getElementById("hamburger-btn")
+          .addEventListener("click", function () {
+            document.getElementById("navbar-nav").classList.toggle("active");
+          });
+
+        // For the icons use
+        lucide.createIcons();
+      }
+      document.addEventListener("DOMContentLoaded", initCommentsPage);
+    </script>
+  </body>
+</html>

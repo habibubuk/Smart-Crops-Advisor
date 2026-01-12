@@ -1,0 +1,173 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Users</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="style.css" />
+  </head>
+  <body>
+    <header class="navbar">
+      <div class="navbar-content">
+        <a href="dashboard.html" class="navbar-logo">
+          <img src="../Images/Group 1.png" alt="Smart Crop Advisor" />
+        </a>
+        <button id="hamburger-btn">
+          <i data-lucide="menu"></i>
+        </button>
+        <nav class="navbar-nav" id="navbar-nav">
+          <a href="dashboard.html" class="nav-link">Dashboard</a>
+          <a href="createpost.html" class="nav-link">Create Post</a>
+          <a href="comments.html" class="nav-link" id="comments-nav"
+            >Comments</a
+          >
+          <a href="users.html" class="nav-link active">Users</a>
+          <a href="profile.html" class="nav-link">Profile</a>
+        </nav>
+      </div>
+    </header>
+
+    <main class="main-content">
+      <section class="page">
+        <div class="page-header">
+          <h1 class="page-title">
+            Registered Users
+            <span id="total-users" class="page-title-count">0 users</span>
+          </h1>
+          <p class="page-subtitle">All users on the platform</p>
+        </div>
+
+        <div id="users-grid" class="users-grid">
+          <div class="loading-state">Loading users...</div>
+        </div>
+
+        <div class="empty-state hidden" id="empty-state">
+          <p class="empty-text">No users registered yet</p>
+        </div>
+      </section>
+    </main>
+
+    <!-- Supabase SDK -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="../supabase-api.js"></script>
+    <script src="../supabase-config.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/lucide@0.321.0/dist/umd/lucide.min.js"></script>
+
+    <script>
+      // Function to format date
+      function formatDate(dateString) {
+        if (!dateString) return "Unknown";
+        let date = new Date(dateString);
+        return date.toLocaleString("en-US", {
+          month: "short",
+          day: "numeric",
+          year: "numeric",
+          hour: "2-digit",
+          minute: "2-digit",
+        });
+      }
+
+      // Function to create HTML for user card
+      function createUserCard(user) {
+        return `
+          <div class="user-card">
+            <div class="user-avatar">
+              <i data-lucide="user"></i>
+            </div>
+            <div class="user-info">
+              <h3 class="user-name">${user.name}</h3>
+              <p class="user-email">${user.email}</p>
+              <span class="user-date">Joined: ${formatDate(
+                user.joined_date
+              )}</span>
+            </div>
+          </div>
+        `;
+      }
+
+      // Function to fetch users from database
+      function loadUsers() {
+        getAllUsers()
+          .then(function (snapshot) {
+            let usersGrid = document.getElementById("users-grid");
+            let emptyState = document.getElementById("empty-state");
+            let totalEl = document.getElementById("total-users");
+
+            // Filter out admin users
+            let users = [];
+            snapshot.forEach(function (user) {
+              if (user.role !== "admin") {
+                users.push(user);
+              }
+            });
+
+            // Update user count
+            totalEl.textContent = `${users.length} users`;
+
+            // If no users found
+            if (users.length === 0) {
+              usersGrid.innerHTML = "";
+              emptyState.classList.remove("hidden");
+              return;
+            }
+
+            // Show users
+            emptyState.classList.add("hidden");
+
+            let html = "";
+            users.forEach(function (user) {
+              html = html + createUserCard(user);
+            });
+
+            usersGrid.innerHTML = html;
+
+            // Re-initialize icons for new elements
+            lucide.createIcons();
+          })
+          .catch(function (error) {
+            document.getElementById("users-grid").innerHTML = `
+                <p class="error-message">${getFriendlyErrorMessage(error)}</p>
+            `;
+          });
+      }
+
+      // Auth check
+      function checkAdminAuth(user) {
+        if (!user) {
+          window.location.href = "login.html";
+          return;
+        }
+
+        getUserRole(user.id).then(function (role) {
+          if (role !== "admin") {
+            window.location.href = "login.html";
+          } else {
+            loadUsers();
+          }
+        });
+      }
+
+      // Function to initialize the page
+      function initUsersPage() {
+        onAuthChange(checkAdminAuth);
+
+        // Sidebar toggle
+        document
+          .getElementById("hamburger-btn")
+          .addEventListener("click", function () {
+            document.getElementById("navbar-nav").classList.toggle("active");
+          });
+
+        // For the icons use
+        lucide.createIcons();
+      }
+      document.addEventListener("DOMContentLoaded", initUsersPage);
+    </script>
+  </body>
+</html>

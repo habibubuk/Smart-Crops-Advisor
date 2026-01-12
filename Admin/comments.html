@@ -1,0 +1,293 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta
+      name="description"
+      content="User Comments - Smart Crop Advisor Admin"
+    />
+    <title>Comments</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="style.css" />
+  </head>
+  <body>
+    <header class="navbar">
+      <div class="navbar-content">
+        <a href="dashboard.html" class="navbar-logo">
+          <img src="../Images/Group 1.png" alt="Smart Crop Advisor" />
+        </a>
+        <button id="hamburger-btn">
+          <i data-lucide="menu"></i>
+        </button>
+        <nav class="navbar-nav" id="navbar-nav">
+          <a href="dashboard.html" class="nav-link">Dashboard</a>
+          <a href="createpost.html" class="nav-link">Create Post</a>
+          <a href="comments.html" class="nav-link active" id="comments-nav"
+            >Comments</a
+          >
+          <a href="users.html" class="nav-link">Users</a>
+          <a href="profile.html" class="nav-link">Profile</a>
+        </nav>
+      </div>
+    </header>
+
+    <main class="main-content">
+      <section class="page">
+        <div class="page-header">
+          <h1 class="page-title">
+            All comments
+            <span id="total-comments" class="page-title-count">0 comments</span>
+          </h1>
+          <p class="page-subtitle">View and reply to users comments</p>
+        </div>
+
+        <div id="comments-list" class="comments-list">
+          <div class="loading-state">Loading comments...</div>
+        </div>
+
+        <div class="empty-state hidden" id="empty-state">
+          <p class="empty-text">No comments yet</p>
+        </div>
+      </section>
+    </main>
+
+    <!-- Supabase SDK -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="../supabase-api.js"></script>
+    <script src="../supabase-config.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/lucide@0.321.0/dist/umd/lucide.min.js"></script>
+
+    <script>
+      // Global variable for storing comments
+      let commentsData = [];
+
+      // Function to toggle between short and full comment text
+      function toggleContent(link) {
+        let card = link.parentElement;
+        let short = card.querySelector(".comment-text");
+        let full = card.querySelector(".comment-full-text");
+
+        if (full.classList.contains("hidden")) {
+          full.classList.remove("hidden");
+          short.classList.add("hidden");
+          link.textContent = "Display less";
+        } else {
+          full.classList.add("hidden");
+          short.classList.remove("hidden");
+          link.textContent = "Display more";
+        }
+      }
+
+      // Function to handle reply submission
+      function handleReply(index) {
+        let input = document.getElementById("reply-input-" + index);
+        let text = input.value.trim();
+
+        if (text === "") {
+          alert("Please enter a reply");
+          return;
+        }
+
+        // Get comment data
+        let comment = commentsData[index];
+
+        // Get current date
+        let today = new Date();
+        let dateString = today.toLocaleString("en-US", {
+          month: "short",
+          day: "numeric",
+          year: "numeric",
+          hour: "2-digit",
+          minute: "2-digit",
+        });
+
+        // Admin reply object
+        let replyData = {
+          text: text,
+          from: "Admin",
+          date: dateString,
+          is_admin: true,
+        };
+
+        // Save reply
+        addReply(comment.id, replyData)
+          .then(function () {
+            input.value = "";
+            loadComments();
+            alert("Reply sent!");
+          })
+          .catch(function (error) {
+            alert(getFriendlyErrorMessage(error));
+          });
+      }
+
+      // Function to format date
+      function formatDate(dateString) {
+        if (!dateString) return "Just now";
+        let date = new Date(dateString);
+        return date.toLocaleString("en-US", {
+          month: "short",
+          day: "numeric",
+          year: "numeric",
+          hour: "2-digit",
+          minute: "2-digit",
+        });
+      }
+
+      // Function to create HTML for comment card
+      function createCommentCard(item, index) {
+        if (item.type === "reply") {
+          let cropName = item.comment.crops?.name || "Crop";
+          return `
+            <div class="comment-card reply-card">
+              <div class="comment-card-info">
+                <div class="comment-preview">
+                  <span class="comment-crop-name admin-reply">
+                    Admin replied
+                  </span>
+                  <p class="comment-text-preview">${item.reply.text}</p>
+                </div>
+              </div>
+              <span class="comment-date">${item.reply.date}</span>
+            </div>
+          `;
+        } else {
+          let cropName = item.comment.crops?.name || "Crop";
+          let userName = item.comment.users?.name || "User";
+          let content = item.comment.content;
+          let date = formatDate(item.comment.created_at);
+
+          let shortContent = content;
+          let showMoreHtml = "";
+
+          // If comment is long, shotten it
+          if (content.length > 100) {
+            shortContent = content.substring(0, 100) + "...";
+            showMoreHtml = `<span class="display-more" onclick="toggleContent(this)">Display more</span>`;
+          }
+
+          return `
+            <div class="comment-card">
+              <div class="comment-card-info">
+                <span class="comment-crop-name">
+                   ${userName} commented on ${cropName}
+                </span>
+                <span class="comment-date">
+                  ${date}
+                </span>
+              </div>
+              
+              <p class="comment-text">${shortContent}</p>
+              ${showMoreHtml}
+              
+              <p class="comment-full-text hidden">
+                ${content}
+                
+                <div class="reply-form">
+                  <input type="text" id="reply-input-${item.commentIndex}" class="form-input reply-input" placeholder="Write a reply...">
+                  <button class="btn btn-primary btn-sm" onclick="handleReply(${item.commentIndex})">Reply</button>
+                </div>
+              </p>
+            </div>
+          `;
+        }
+      }
+
+      // Function to fetch comments
+      function loadComments() {
+        getAllComments()
+          .then(function (comments) {
+            let commentsList = document.getElementById("comments-list");
+            let emptyState = document.getElementById("empty-state");
+            let totalEl = document.getElementById("total-comments");
+
+            // Store data globally
+            commentsData = comments;
+
+            // Process and display comments
+            let items = [];
+            comments.forEach(function (comment, i) {
+              items.push({
+                type: "comment",
+                comment: comment,
+                commentIndex: i,
+              });
+
+              // Add any replies
+              if (comment.replies && comment.replies.length > 0) {
+                comment.replies.forEach(function (reply) {
+                  items.push({
+                    type: "reply",
+                    comment: comment,
+                    reply: reply,
+                  });
+                });
+              }
+            });
+
+            // Update comments count
+            totalEl.textContent = ` ${comments.length} comments `;
+
+            // If no comments found
+            if (items.length === 0) {
+              commentsList.innerHTML = "";
+              emptyState.classList.remove("hidden");
+              return;
+            }
+
+            // Show comments
+            emptyState.classList.add("hidden");
+            let html = "";
+            items.forEach(function (item, index) {
+              html = html + createCommentCard(item, index);
+            });
+
+            commentsList.innerHTML = html;
+          })
+          .catch(function (error) {
+            document.getElementById("comments-list").innerHTML = `
+                <p class="error-message">${getFriendlyErrorMessage(error)}</p>
+             `;
+          });
+      }
+
+      // Auth check
+      function checkAdminAuth(user) {
+        if (!user) {
+          window.location.href = "login.html";
+          return;
+        }
+
+        getUserRole(user.id).then(function (role) {
+          if (role !== "admin") {
+            window.location.href = "login.html";
+          } else {
+            loadComments();
+          }
+        });
+      }
+
+      // Function to initialize the page
+      function initCommentsPage() {
+        onAuthChange(checkAdminAuth);
+
+        // Sidebar toggle
+        document
+          .getElementById("hamburger-btn")
+          .addEventListener("click", function () {
+            document.getElementById("navbar-nav").classList.toggle("active");
+          });
+
+        // For the icons use
+        lucide.createIcons();
+      }
+      document.addEventListener("DOMContentLoaded", initCommentsPage);
+    </script>
+  </body>
+</html>

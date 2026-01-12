@@ -1,0 +1,165 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Admin Login</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="style.css" />
+  </head>
+  <body>
+    <section class="auth-page">
+      <div class="auth-container">
+        <div class="auth-header">
+          <img
+            src="../Images/Group 1.png"
+            alt="Smart Crop Advisor"
+            class="auth-logo"
+          />
+        </div>
+        <form id="login-form" class="auth-form">
+          <div class="form-group">
+            <label for="login-email" class="form-label">Email Address</label>
+            <input
+              type="text"
+              id="login-email"
+              class="form-input"
+              placeholder="Enter admin email"
+            />
+            <span id="email-error" class="form-error hidden"></span>
+          </div>
+          <div class="form-group">
+            <label for="login-password" class="form-label">Password</label>
+            <input
+              type="password"
+              id="login-password"
+              class="form-input"
+              placeholder="Enter password"
+            />
+            <span id="password-error" class="form-error hidden"></span>
+          </div>
+          <button
+            type="submit"
+            id="submit-btn"
+            class="btn btn-primary btn-full"
+          >
+            Login as Admin
+          </button>
+        </form>
+        <div class="auth-footer flex-footer">
+          <a href="../User/login.html" class="btn-sm btn-outline">User Login</a>
+        </div>
+      </div>
+    </section>
+
+    <!-- Supabase SDK -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="../supabase-config.js"></script>
+
+    <script>
+      // Function to display error messages on the form
+      function showError(inputId, errorId, message) {
+        let inputElement = document.getElementById(inputId);
+        inputElement.classList.add("error");
+
+        let errorElement = document.getElementById(errorId);
+        errorElement.textContent = message;
+        errorElement.classList.remove("hidden");
+      }
+
+      // Function to clear all error messages
+      function clearErrors() {
+        document.getElementById("login-email").classList.remove("error");
+        document.getElementById("login-password").classList.remove("error");
+        document.getElementById("email-error").classList.add("hidden");
+        document.getElementById("password-error").classList.add("hidden");
+      }
+
+      // Function to handle admin login
+      function handleLogin(event) {
+        // Prevent default submission of form
+        event.preventDefault();
+
+        clearErrors();
+        // Get values from the form inputs
+        let email = document.getElementById("login-email").value.trim();
+        let password = document.getElementById("login-password").value;
+        let submitBtn = document.getElementById("submit-btn");
+
+        if (email === "") {
+          showError("login-email", "email-error", "Email is required");
+          return;
+        }
+
+        if (password === "") {
+          showError("login-password", "password-error", "Password is required");
+          return;
+        }
+
+        // If success login show logging in..
+        submitBtn.textContent = "Logging in...";
+        submitBtn.disabled = true;
+
+        // Attempt to sign in
+        signIn(email, password)
+          .then(function (data) {
+            // Check if user is an admin
+            return getUserRole(data.user.id);
+          })
+          .then(function (role) {
+            // Check role of admin
+            if (role === "admin") {
+              // if Success navigate to dashboard
+              window.location.href = "dashboard.html";
+            } else {
+              // if not an admin
+              submitBtn.textContent = "Login as Admin";
+              submitBtn.disabled = false;
+              showError(
+                "login-email",
+                "email-error",
+                "Admin account required."
+              );
+              signOut();
+            }
+          })
+          .catch(function (error) {
+            // Reset the button
+            submitBtn.textContent = "Login as Admin";
+            submitBtn.disabled = false;
+
+            // Show error message
+            showError(
+              "login-email",
+              "email-error",
+              getFriendlyErrorMessage(error)
+            );
+          });
+      }
+
+      // Function to initialize the page
+      function initLoginPage() {
+        document
+          .getElementById("login-form")
+          .addEventListener("submit", handleLogin);
+
+        // Check if already logged in
+        onAuthChange(function (user) {
+          if (user) {
+            getUserRole(user.id).then(function (role) {
+              if (role === "admin") {
+                window.location.href = "dashboard.html";
+              }
+            });
+          }
+        });
+      }
+      document.addEventListener("DOMContentLoaded", initLoginPage);
+    </script>
+  </body>
+</html>
